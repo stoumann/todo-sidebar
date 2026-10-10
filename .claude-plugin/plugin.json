@@ -1,0 +1,11 @@
+{
+  "name": "todo-sidebar",
+  "version": "1.0.0",
+  "description": "A per-project todo list in a sidebar, kept in todos.md in the project folder, that both you and Claude can edit",
+  "author": { "name": "Mark Stoumann" },
+  "homepage": "https://github.com/stoumann/todo-sidebar",
+  "repository": "https://github.com/stoumann/todo-sidebar",
+  "license": "MIT",
+  "keywords": ["todo", "tasks", "sidebar", "pane", "markdown"],
+  "types": "./types/index.d.ts"
+}

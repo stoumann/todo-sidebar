@@ -1,0 +1,14 @@
+{
+  "name": "stoumann",
+  "owner": {
+    "name": "Mark Stoumann"
+  },
+  "description": "Claude Code plugins by Mark Stoumann",
+  "plugins": [
+    {
+      "name": "todo-sidebar",
+      "source": "./",
+      "description": "A per-project todo list in a sidebar, kept in todos.md in the project folder, that both you and Claude can edit"
+    }
+  ]
+}
