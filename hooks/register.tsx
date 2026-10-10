@@ -75,12 +75,29 @@ const todoPath = async ($: EngineInterface) => `${projectRoot(await $.session.ro
 
 const projectName = (path: string) => path.split('/').slice(-2, -1)[0] ?? ''
 
+// Which groups are folded is kept per project across sessions, under the
+// path of its todos.md, so the next session opens the list as it was left.
+const foldKey = (path: string) => `folds:${path}`
+
+const loadFolds = async ($: EngineInterface, path: string) => {
+  const kept = (await $.store.get(foldKey(path))) as { collapsed?: unknown; showDone?: unknown } | undefined
+  const folded: unknown[] = Array.isArray(kept?.collapsed) ? kept.collapsed : []
+  await update($, collapsed, () => todos.STATUSES.filter(status => folded.includes(status)))
+  await update($, showDone, () => kept?.showDone === true)
+}
+
+const saveFolds = async ($: EngineInterface) => {
+  const folds = { collapsed: await read($, collapsed), showDone: await read($, showDone) }
+  await $.store.set(foldKey(await todoPath($)), folds)
+}
+
 const refresh = async ($: EngineInterface, force = false) => {
   const path = await todoPath($)
   const held = await read($, list)
   const stat = await $.fs.stat(path).catch(() => null)
   const mtimeMs = stat?.mtimeMs ?? 0
   if (!force && held?.path === path && held.mtimeMs === mtimeMs && held.error === null) return held
+  if (held?.path !== path) await loadFolds($, path).catch(() => undefined)
 
   let next: TodoFile
   try {
@@ -497,8 +514,14 @@ export const register: Register = on => {
       const groups = GROUPS.map(status => ({ status, items: active.filter(todo => todo.status === status) })).filter(
         group => group.items.length > 0,
       )
-      const toggleGroup = (status: Status) =>
-        void update($, collapsed, shut => (shut.includes(status) ? shut.filter(one => one !== status) : [...shut, status]))
+      const toggleGroup = async (status: Status) => {
+        await update($, collapsed, shut => (shut.includes(status) ? shut.filter(one => one !== status) : [...shut, status]))
+        await saveFolds($).catch(() => undefined)
+      }
+      const toggleDone = async () => {
+        await update($, showDone, shown => !shown)
+        await saveFolds($).catch(() => undefined)
+      }
 
       return (
         <Box flexDirection="column" gap={2}>
@@ -529,10 +552,10 @@ export const register: Register = on => {
               </Box>
             ) : null}
             {groups.map(({ status, items: rows }) =>
-              group(`group-${status}`, status, STATUS[status].label, rows.length, !shut.includes(status), () => toggleGroup(status), rows.map(row)),
+              group(`group-${status}`, status, STATUS[status].label, rows.length, !shut.includes(status), () => void toggleGroup(status), rows.map(row)),
             )}
             {closed.length > 0
-              ? group('toggle-done', 'done', 'Completed', closed.length, isShowingDone, () => void update($, showDone, shown => !shown), [
+              ? group('toggle-done', 'done', 'Completed', closed.length, isShowingDone, () => void toggleDone(), [
                   ...closed.slice(0, DONE_SHOWN).map(row),
                   ...(closed.length > DONE_SHOWN ? [<Text dimColor>… and {closed.length - DONE_SHOWN} older in {FILE_NAME}</Text>] : []),
                 ])

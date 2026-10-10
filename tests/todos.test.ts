@@ -296,6 +296,41 @@ test("an item's page moves its status with buttons and asks before deleting", as
   }
 })
 
+test('folded groups are kept per project for the next session', async ($, on) => {
+  mock.clock(on, { now: new Date(2026, 9, 10).getTime() })
+  // The plugin's store, as the next session finds it.
+  const store = new Map<string, unknown>([
+    ['folds:/p/acme/todos.md', { collapsed: ['waiting', 'nonsense'], showDone: true }],
+    ['folds:/p/other/todos.md', { collapsed: ['todo'], showDone: false }],
+  ])
+  on('store.get', ($, e) => ({ value: store.get(e.key) }))
+  on('store.set', ($, e) => {
+    store.set(e.key, e.value)
+
+    return { value: undefined }
+  })
+  project(on, SAMPLE)
+  await $.tool.call({ tool: 'mcp__todo-sidebar__todo', action: 'list' })
+  const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
+  const shown = async (title: string) => (await ui.find({ key: `open-${byTitle(SAMPLE, title).id}` })) !== undefined
+
+  // The session opens the list as this project was left.
+  expect(await shown('Check the marketing rules')).toBe(false)
+  expect(await shown('Import the holiday events')).toBe(true)
+  expect(await shown('Turn on Google login')).toBe(true)
+
+  // Each fold is saved for the next session, and other projects keep theirs.
+  await ui.press({ key: 'group-waiting' })
+  await ui.press({ key: 'group-doing' })
+  await ui.press({ key: 'toggle-done' })
+  expect(await shown('Check the marketing rules')).toBe(true)
+  expect(await shown('Turn on Google login')).toBe(false)
+  expect(store.get('folds:/p/acme/todos.md')).toEqual({ collapsed: ['doing'], showDone: false })
+  expect(store.get('folds:/p/other/todos.md')).toEqual({ collapsed: ['todo'], showDone: false })
+
+  await ui.unmount()
+})
+
 test('the model lists and changes the list through its tool', async ($, on) => {
   mock.clock(on, { now: new Date(2026, 9, 10).getTime() })
   const disk = project(on, SAMPLE)

@@ -17,7 +17,8 @@ It works in the terminal too:
 - **A sidebar pane.** It opens when a session starts and shows open items
   grouped by status (in progress, open, waiting). Click a status heading to
   fold its items away or show them again. Completed items are folded away
-  below them.
+  below them. Each project remembers which groups are folded, so the next
+  session opens the list as you left it.
 - **Add, open and edit items.** Type a title and press Enter to add one. Click
   an item's status icon to pick another status from the list that opens under
   it. Click the title to open the item. Its page has buttons for the likely
